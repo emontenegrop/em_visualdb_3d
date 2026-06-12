@@ -10,6 +10,14 @@ export interface ConnectionRequest {
   database: string;
 }
 
+export function setConnectionHeaders(conn: ConnectionRequest) {
+  api.defaults.headers.common["x-db-host"] = conn.host;
+  api.defaults.headers.common["x-db-port"] = String(conn.port);
+  api.defaults.headers.common["x-db-user"] = conn.user;
+  api.defaults.headers.common["x-db-password"] = conn.password;
+  api.defaults.headers.common["x-db-name"] = conn.database;
+}
+
 export interface Column {
   name: string;
   data_type: string;

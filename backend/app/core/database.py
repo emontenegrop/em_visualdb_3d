@@ -1,30 +1,28 @@
+from fastapi import Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy import text
-from app.core.config import settings
 import structlog
 
 log = structlog.get_logger()
 
-engine = create_async_engine(
-    settings.async_dsn,
-    pool_size=settings.db_pool_size,
-    pool_timeout=settings.db_pool_timeout,
-    echo=settings.debug,
-)
 
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
-
-
-async def get_session() -> AsyncSession:
-    async with AsyncSessionLocal() as session:
-        yield session
-
-
-async def test_connection() -> bool:
+async def get_dynamic_session(
+    x_db_host: str = Header(...),
+    x_db_port: str = Header(default="5432"),
+    x_db_user: str = Header(...),
+    x_db_password: str = Header(...),
+    x_db_name: str = Header(...),
+):
+    dsn = (
+        f"postgresql+psycopg://{x_db_user}:{x_db_password}"
+        f"@{x_db_host}:{x_db_port}/{x_db_name}"
+    )
+    engine = create_async_engine(dsn, pool_size=1, pool_pre_ping=True)
+    sm = async_sessionmaker(engine, expire_on_commit=False)
     try:
-        async with AsyncSessionLocal() as session:
-            await session.execute(text("SELECT 1"))
-        return True
+        async with sm() as session:
+            yield session
     except Exception as e:
-        log.error("db_connection_failed", error=str(e))
-        return False
+        log.error("dynamic_session_failed", error=str(e))
+        raise HTTPException(status_code=503, detail=f"Database connection failed: {e}")
+    finally:
+        await engine.dispose()

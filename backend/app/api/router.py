@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.database import get_session, test_connection
+from app.core.database import get_dynamic_session
 from app.services.metadata import extract_tables, get_schemas, get_db_version
 from app.graph.builder import build_graph, graph_to_schema, compute_metrics
 from app.schemas.db import (
@@ -38,14 +38,14 @@ async def test_db_connection(req: ConnectionRequest):
 
 
 @router.get("/schemas", response_model=list[str])
-async def list_schemas(session: AsyncSession = Depends(get_session)):
+async def list_schemas(session: AsyncSession = Depends(get_dynamic_session)):
     return await get_schemas(session)
 
 
 @router.get("/tables", response_model=list[TableSchema])
 async def list_tables(
     schema: str | None = Query(None),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_dynamic_session),
 ):
     tables = await extract_tables(session)
     if schema:
@@ -57,7 +57,7 @@ async def list_tables(
 async def get_table(
     schema_name: str,
     table_name: str,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_dynamic_session),
 ):
     tables = await extract_tables(session)
     for t in tables:
@@ -70,7 +70,7 @@ async def get_table(
 async def get_graph(
     layout: str = Query("force", pattern="^(force|sphere)$"),
     schema: str | None = Query(None),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_dynamic_session),
 ):
     tables = await extract_tables(session)
     if schema:
@@ -80,7 +80,7 @@ async def get_graph(
 
 
 @router.get("/relationships")
-async def get_relationships(session: AsyncSession = Depends(get_session)):
+async def get_relationships(session: AsyncSession = Depends(get_dynamic_session)):
     tables = await extract_tables(session)
     rels = []
     for t in tables:
@@ -98,7 +98,7 @@ async def get_relationships(session: AsyncSession = Depends(get_session)):
 
 
 @router.get("/metrics", response_model=MetricsSchema)
-async def get_metrics(session: AsyncSession = Depends(get_session)):
+async def get_metrics(session: AsyncSession = Depends(get_dynamic_session)):
     tables = await extract_tables(session)
     G = build_graph(tables)
     return compute_metrics(G)
@@ -106,5 +106,4 @@ async def get_metrics(session: AsyncSession = Depends(get_session)):
 
 @router.get("/health")
 async def health():
-    ok = await test_connection()
-    return {"status": "ok" if ok else "db_unavailable", "db": ok}
+    return {"status": "ok"}

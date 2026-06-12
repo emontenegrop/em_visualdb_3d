@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { dbApi, ConnectionRequest } from "@/services/api";
+import { dbApi, setConnectionHeaders, ConnectionRequest } from "@/services/api";
 import { useGraphStore } from "@/store/graphStore";
 
 const DEFAULT: ConnectionRequest = {
@@ -28,6 +28,7 @@ export default function ConnectionPanel() {
     try {
       const { data } = await dbApi.testConnection(form);
       if (data.success) {
+        setConnectionHeaders(form);
         setStatus("ok");
         setMessage(data.version ?? "Connected");
         setConnected(true);
